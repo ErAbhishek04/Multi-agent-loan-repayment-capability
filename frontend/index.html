@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Explainable loan application review dashboard">
+  <title>Clearline | Loan review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">C</span><span>clearline</span></div>
+      <p class="eyebrow">Review workspace</p>
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a class="nav-item active" href="#overview"><i data-lucide="layout-dashboard"></i><span>Overview</span></a>
+        <a class="nav-item" href="#applications"><i data-lucide="file-check-2"></i><span>Applications</span><span class="nav-count">3</span></a>
+        <a class="nav-item" href="#signals"><i data-lucide="scan-search"></i><span>Signals</span></a>
+        <a class="nav-item" href="#audit"><i data-lucide="notebook-tabs"></i><span>Audit log</span></a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="privacy-note"><i data-lucide="shield-check"></i><div><strong>Private by design</strong><span>Local demo data only</span></div></div>
+        <button class="user-menu" type="button"><span class="avatar">AR</span><span class="user-copy"><strong>Alex Rivera</strong><small>Reviewer</small></span><i data-lucide="chevrons-up-down"></i></button>
+      </div>
+    </aside>
+
+    <main class="main-content" id="overview">
+      <header class="topbar">
+        <div class="breadcrumb"><span>Workspace</span><i data-lucide="chevron-right"></i><strong>Loan review</strong></div>
+        <div class="top-actions"><span class="live-status"><span class="status-dot"></span>Local workspace</span><button class="icon-button" aria-label="Notifications" title="Notifications"><i data-lucide="bell"></i><span class="notification-dot"></span></button></div>
+      </header>
+
+      <section class="page-heading">
+        <div><p class="eyebrow">Saturday, September 5, 2026</p><h1>Good morning, Alex<span class="accent-dot">.</span></h1><p class="heading-copy">Review evidence clearly. Make the call with context.</p></div>
+        <button class="outline-button" id="refreshButton" type="button"><i data-lucide="refresh-cw"></i>Refresh queue</button>
+      </section>
+
+      <section class="metric-grid" aria-label="Review summary">
+        <article class="metric-card dark-card"><div class="metric-top"><span>Needs your review</span><i data-lucide="inbox"></i></div><strong>03</strong><span class="metric-foot">1 new since yesterday</span></article>
+        <article class="metric-card"><div class="metric-top"><span>Median DTI</span><i data-lucide="percent"></i></div><strong>78.2%</strong><span class="metric-foot positive"><i data-lucide="trending-down"></i> 3.8% vs. last week</span></article>
+        <article class="metric-card"><div class="metric-top"><span>Evidence coverage</span><i data-lucide="layers-2"></i></div><strong>92%</strong><span class="metric-foot">Across active applications</span></article>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel applications-panel" id="applications">
+          <div class="panel-heading"><div><p class="eyebrow">Queue</p><h2>Applications to review</h2></div><button class="text-button" id="clearFilters" type="button">Clear filters <i data-lucide="x"></i></button></div>
+          <div class="filter-row"><label class="search-field"><i data-lucide="search"></i><input id="searchInput" type="search" placeholder="Search applicant or ID" aria-label="Search applications"></label><select id="statusFilter" aria-label="Filter by status"><option value="all">All statuses</option><option value="ready">Ready to review</option><option value="attention">Needs attention</option></select><button class="filter-button" type="button"><i data-lucide="sliders-horizontal"></i>Filters</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Monthly income</th><th>DTI after loan</th><th>Credit</th><th>Status</th><th><span class="sr-only">Open</span></th></tr></thead><tbody id="applicationRows"></tbody></table></div>
+          <div class="table-footer"><span id="resultCount">Showing 3 applications</span><div class="pagination"><button class="icon-button small" aria-label="Previous page"><i data-lucide="chevron-left"></i></button><span>1 / 1</span><button class="icon-button small" aria-label="Next page"><i data-lucide="chevron-right"></i></button></div></div>
+        </article>
+
+        <aside class="panel review-panel" id="signals">
+          <div class="review-heading"><div><p class="eyebrow">Selected application</p><h2 id="selectedName">Maya Rao</h2><span class="application-id" id="selectedId">Application #1</span></div><span class="review-badge" id="selectedStatus">Needs attention</span></div>
+          <div class="risk-summary"><div class="score-ring" id="scoreRing"><span id="scoreValue">2/3</span><small>signals</small></div><div><span class="eyebrow">Review signal</span><h3 id="riskTitle">Needs attention</h3><p id="riskCopy">Some indicators need a qualified reviewer’s attention.</p></div></div>
+          <div class="detail-list" id="detailList"></div>
+          <div class="review-callout"><i data-lucide="info"></i><p><strong>Decision support only.</strong> This workspace surfaces evidence for a qualified reviewer. It does not approve or reject applications automatically.</p></div>
+          <div class="review-actions"><button class="primary-button" id="markReviewed" type="button"><i data-lucide="check"></i>Mark reviewed</button><button class="icon-button" id="moreActions" type="button" aria-label="More actions" title="More actions"><i data-lucide="more-horizontal"></i></button></div>
+        </aside>
+      </section>
+
+      <footer class="footer-note"><span><i data-lucide="lock-keyhole"></i>Data stays in your local workspace</span><span>v0.1 demo</span></footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
