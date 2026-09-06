@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import os
+import base64
+import hashlib
+import hmac
+import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -8,7 +13,7 @@ from typing import Any
 import chromadb
 import psycopg
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -18,6 +23,10 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://app:app@localhost:5433/agentdb")
 DB_CONNECT_TIMEOUT = int(os.getenv("DB_CONNECT_TIMEOUT", "3"))
+LOGIN_USERNAME = os.getenv("LOGIN_USERNAME", "reviewer")
+LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "change-me")
+SESSION_SECRET = os.getenv("SESSION_SECRET", "local-development-secret-change-me")
+SESSION_COOKIE = "clearline_session"
 CHROMA_PATH = os.getenv("CHROMA_PATH", "./chroma_data")
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -61,6 +70,64 @@ class AuditInput(BaseModel):
     event_type: str = Field(min_length=2, max_length=80)
     reviewer: str = Field(default="Alex Rivera", min_length=2, max_length=100)
     note: str = Field(default="", max_length=1000)
+
+
+class LoginInput(BaseModel):
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=200)
+
+
+def create_session(username: str) -> str:
+    payload = base64.urlsafe_b64encode(json.dumps({"sub": username, "exp": int(time.time()) + 8 * 60 * 60}, separators=(",", ":")).encode()).decode().rstrip("=")
+    signature = hmac.new(SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}.{signature}"
+
+
+def session_username(token: str | None) -> str | None:
+    if not token or "." not in token:
+        return None
+    payload, signature = token.rsplit(".", 1)
+    expected = hmac.new(SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        return None
+    try:
+        decoded = base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
+        data = json.loads(decoded)
+        if int(data["exp"]) < int(time.time()):
+            return None
+        return str(data["sub"])
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return None
+
+
+@app.middleware("http")
+async def protect_api(request: Request, call_next):
+    if request.url.path.startswith("/api/") and request.url.path not in {"/api/health", "/api/auth/login"}:
+        if session_username(request.cookies.get(SESSION_COOKIE)) is None:
+            return Response(content=json.dumps({"detail": "Authentication required"}), status_code=401, media_type="application/json")
+    return await call_next(request)
+
+
+@app.post("/api/auth/login")
+def login(payload: LoginInput, response: Response) -> dict[str, str]:
+    if not (hmac.compare_digest(payload.username, LOGIN_USERNAME) and hmac.compare_digest(payload.password, LOGIN_PASSWORD)):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    response.set_cookie(SESSION_COOKIE, create_session(payload.username), httponly=True, samesite="lax", max_age=8 * 60 * 60)
+    return {"username": payload.username}
+
+
+@app.post("/api/auth/logout")
+def logout(response: Response) -> dict[str, str]:
+    response.delete_cookie(SESSION_COOKIE)
+    return {"status": "signed_out"}
+
+
+@app.get("/api/auth/me")
+def current_user(request: Request) -> dict[str, str]:
+    username = session_username(request.cookies.get(SESSION_COOKIE))
+    if username is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"username": username}
 
 
 def require_application(conn: psycopg.Connection[Any], application_id: int) -> None:

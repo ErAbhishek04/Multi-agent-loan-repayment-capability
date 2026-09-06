@@ -42,6 +42,7 @@ let applications = [
 
 let selectedId = 1;
 let apiConnected = false;
+let currentReviewer = "Reviewer";
 const rows = document.querySelector("#applicationRows");
 const searchInput = document.querySelector("#searchInput");
 const statusFilter = document.querySelector("#statusFilter");
@@ -204,6 +205,31 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2600);
 }
 
+function showWorkspace(username) {
+  currentReviewer = username;
+  document.querySelector("#reviewerName").textContent = username;
+  document.querySelector("#loginScreen").hidden = true;
+  document.querySelector(".app-shell").hidden = false;
+  renderRows();
+  renderSelected();
+  loadApplications();
+  loadFeatureData();
+}
+
+async function signIn(event) {
+  event.preventDefault();
+  const error = document.querySelector("#loginError");
+  error.textContent = "";
+  try {
+    const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: document.querySelector("#loginUsername").value.trim(), password: document.querySelector("#loginPassword").value }) });
+    if (!response.ok) throw new Error("Invalid username or password");
+    const user = await response.json();
+    showWorkspace(user.username);
+  } catch (signInError) {
+    error.textContent = signInError.message;
+  }
+}
+
 searchInput.addEventListener("input", renderRows);
 statusFilter.addEventListener("change", renderRows);
 document.querySelector("#clearFilters").addEventListener("click", () => { searchInput.value = ""; statusFilter.value = "all"; renderRows(); });
@@ -263,7 +289,7 @@ document.querySelector("#auditForm").addEventListener("submit", async (event) =>
   const note = noteInput.value.trim();
   if (!note) return;
   if (!apiConnected) { showToast("Start the API to save reviewer notes"); return; }
-  const response = await fetch(`/api/applications/${selectedId}/audit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event_type: "reviewer_note", reviewer: "Alex Rivera", note }) });
+  const response = await fetch(`/api/applications/${selectedId}/audit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event_type: "reviewer_note", reviewer: currentReviewer, note }) });
   if (!response.ok) { showToast("Could not save reviewer note"); return; }
   noteInput.value = "";
   await loadFeatureData();
@@ -297,7 +323,12 @@ document.querySelector("#documentInput").addEventListener("change", async (event
 });
 
 lucide.createIcons();
-renderRows();
-renderSelected();
-loadApplications();
-loadFeatureData();
+document.querySelector("#loginForm").addEventListener("submit", signIn);
+document.querySelector("#logoutButton").addEventListener("click", async () => {
+  await fetch("/api/auth/logout", { method: "POST" });
+  document.querySelector(".app-shell").hidden = true;
+  document.querySelector("#loginScreen").hidden = false;
+  document.querySelector("#loginPassword").value = "";
+});
+document.querySelector(".app-shell").hidden = true;
+fetch("/api/auth/me").then((response) => response.ok ? response.json() : Promise.reject()).then((user) => showWorkspace(user.username)).catch(() => document.querySelector("#loginUsername").focus());

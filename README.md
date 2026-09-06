@@ -49,6 +49,8 @@ ollama pull llama3.2
 
 To use another local server or model, set `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL` in `.env`. Tracing export is disabled, so an `OPENAI_API_KEY` is not required.
 
+The dashboard uses a local reviewer login. Set `LOGIN_USERNAME`, `LOGIN_PASSWORD`, and a long random `SESSION_SECRET` in `.env`. The example defaults are `reviewer` and `change-me`; replace them before sharing the app.
+
 ## 3. Start PostgreSQL
 
 ```powershell
@@ -129,6 +131,14 @@ The API exposes `/api/health`, `/api/applications`, `/api/applications/{id}/asse
 ```
 
 The important architecture idea is that the **agents do not connect directly to PostgreSQL/Chroma**. They call MCP tools. The MCP server owns the actual integrations.
+
+## What AI does
+
+- The Manager agent routes questions to the SQL, knowledge, and loan-risk specialists.
+- The SQL specialist retrieves employee and department facts through MCP and PostgreSQL.
+- The Knowledge specialist searches Chroma and grounds answers in internal guidance.
+- The Loan Risk specialist calculates explainable affordability indicators from application data.
+- AI does not approve or reject applications, infer protected characteristics, or replace a qualified reviewer. The dashboard's review state, notes, and audit trail remain human-controlled.
 
 ## Review workspace features
 

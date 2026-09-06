@@ -17,6 +17,19 @@ body { margin: 0; background: var(--paper); color: var(--ink); font-family: Manr
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 .app-shell { display: flex; min-height: 100vh; }
+.app-shell[hidden], .login-screen[hidden] { display: none; }
+.login-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 18% 12%, #eef4c9 0, transparent 34%), var(--paper); }
+.login-card { width: min(430px, 100%); padding: 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); box-shadow: var(--shadow); }
+.login-card .brand { margin: 0 0 55px; color: var(--ink); }
+.login-card h1 { margin: 0; font-size: clamp(28px, 5vw, 38px); letter-spacing: -1.5px; line-height: 1.1; }
+.login-copy { margin: 12px 0 24px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.login-form { display: grid; gap: 13px; }
+.login-form label { display: grid; gap: 6px; color: var(--muted); font: 9px "DM Mono", monospace; text-transform: uppercase; }
+.login-form input { width: 100%; padding: 11px; border: 1px solid var(--line); border-radius: 5px; outline: 0; color: var(--ink); font: 12px Manrope, sans-serif; }
+.login-form input:focus { border-color: var(--ink); }
+.login-form .primary-button { width: 100%; min-height: 42px; margin-top: 5px; }
+.login-error { min-height: 16px; margin: 0; color: #b14b3c; font-size: 10px; }
+.login-hint { display: block; margin-top: 16px; color: var(--muted); font-size: 9px; line-height: 1.5; }
 .sidebar { width: 238px; padding: 28px 18px 20px; background: var(--ink); color: #dfe7e7; display: flex; flex-direction: column; flex-shrink: 0; }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 800; letter-spacing: -.6px; color: var(--white); margin: 0 10px 60px; }
 .brand-mark { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--lime); color: var(--ink); font-size: 14px; }

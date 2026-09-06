@@ -12,6 +12,21 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <main class="login-screen" id="loginScreen">
+    <section class="login-card">
+      <div class="brand"><span class="brand-mark">C</span><span>clearline</span></div>
+      <p class="eyebrow">Reviewer access</p>
+      <h1>Sign in to your workspace<span class="accent-dot">.</span></h1>
+      <p class="login-copy">Review applications, evidence, and AI-assisted signals in one private workspace.</p>
+      <form id="loginForm" class="login-form">
+        <label>Username<input id="loginUsername" autocomplete="username" required></label>
+        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+        <button class="primary-button" type="submit"><i data-lucide="log-in"></i>Sign in</button>
+        <p class="login-error" id="loginError" role="alert"></p>
+      </form>
+      <small class="login-hint">Local setup: use the credentials configured in your <code>.env</code> file.</small>
+    </section>
+  </main>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">C</span><span>clearline</span></div>
@@ -24,7 +39,7 @@
       </nav>
       <div class="sidebar-bottom">
         <div class="privacy-note"><i data-lucide="shield-check"></i><div><strong>Private by design</strong><span>Local demo data only</span></div></div>
-        <button class="user-menu" type="button"><span class="avatar">AR</span><span class="user-copy"><strong>Alex Rivera</strong><small>Reviewer</small></span><i data-lucide="chevrons-up-down"></i></button>
+        <button class="user-menu" id="logoutButton" type="button"><span class="avatar">AR</span><span class="user-copy"><strong id="reviewerName">Reviewer</strong><small>Sign out</small></span><i data-lucide="log-out"></i></button>
       </div>
     </aside>
 
