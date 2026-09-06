@@ -366,12 +366,12 @@ async def ai_review(application_id: int) -> dict[str, Any]:
                 response_data = json.loads(model_response.read().decode())
             return response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
-        answer = await asyncio.wait_for(asyncio.to_thread(request_model), timeout=35)
+        answer = await asyncio.wait_for(asyncio.to_thread(request_model), timeout=8)
         if not answer:
             answer = "The AI model returned no explanation."
         return {"application_id": application_id, "answer": answer, "decision_support_only": True, "model": os.getenv("LLM_MODEL", "llama3.2"), "source": "PostgreSQL assessment + local model"}
     except asyncio.TimeoutError as error:
-        raise HTTPException(status_code=504, detail="The local AI model took too long to respond") from error
+        raise HTTPException(status_code=503, detail="Ollama is reachable but text generation is stalled. Restart Ollama and retry the AI reviewer.") from error
     except Exception as error:
         raise HTTPException(status_code=503, detail=f"AI review unavailable: {error}") from error
 
