@@ -52,6 +52,12 @@ const money = (value) => `$${value.toLocaleString("en-US")}`;
 const dti = (application) => (application.debt + application.payment) / application.income;
 const statusLabel = (application) => application.reviewed ? "Reviewed" : application.status === "ready" ? "Ready to review" : "Needs attention";
 
+function updateSummary(summary) {
+  document.querySelector("#needsReviewMetric").textContent = String(summary.needs_review).padStart(2, "0");
+  document.querySelector("#medianDtiMetric").textContent = `${(summary.median_dti * 100).toFixed(1)}%`;
+  document.querySelector("#evidenceMetric").textContent = `${Math.round(summary.evidence_coverage * 100)}%`;
+}
+
 function applyApiApplication(application) {
   return { ...application, initials: application.name.split(" ").map((part) => part[0]).join(""), color: application.id % 3 === 1 ? "#d7f36b" : application.id % 3 === 2 ? "#f6d36b" : "#f47762", reviewed: application.status === "reviewed" };
 }
@@ -60,9 +66,13 @@ async function loadApplications(showMessage = false) {
   try {
     const response = await fetch("/api/applications");
     if (!response.ok) throw new Error(`API ${response.status}`);
-    const liveApplications = await response.json();
+    const [liveApplications, summaryResponse] = await Promise.all([
+      response.json(),
+      fetch("/api/analytics/summary"),
+    ]);
     if (!liveApplications.length) throw new Error("No applications returned");
     applications = liveApplications.map(applyApiApplication);
+    if (summaryResponse.ok) updateSummary(await summaryResponse.json());
     apiConnected = true;
     document.querySelector(".live-status").innerHTML = '<span class="status-dot"></span>API connected';
     renderRows();
@@ -129,7 +139,61 @@ function selectApplication(id) {
   selectedId = id;
   renderRows();
   renderSelected();
+  loadFeatureData();
   document.querySelector(".review-panel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function selectedApplication() {
+  return applications.find((item) => item.id === selectedId);
+}
+
+async function loadFeatureData() {
+  const application = selectedApplication();
+  if (!application) return;
+  document.querySelector("#simIncome").value = application.income;
+  document.querySelector("#simDebt").value = application.debt;
+  document.querySelector("#simPayment").value = application.payment;
+  if (!apiConnected) {
+    renderFairness([{ cohort: "credit_650_plus", applications: 2, reviewed_rate: 0 }, { cohort: "credit_below_650", applications: 1, reviewed_rate: 0 }]);
+    return;
+  }
+  try {
+    const [debate, documents, audit, repayments, fairness] = await Promise.all([
+      fetch(`/api/applications/${selectedId}/debate`).then((response) => response.json()),
+      fetch(`/api/applications/${selectedId}/documents`).then((response) => response.json()),
+      fetch(`/api/applications/${selectedId}/audit`).then((response) => response.json()),
+      fetch("/api/monitoring/repayments").then((response) => response.json()),
+      fetch("/api/analytics/fairness").then((response) => response.json()),
+    ]);
+    renderDebate(debate.specialists);
+    renderDocuments(documents);
+    renderAudit(audit);
+    renderRepayments(repayments);
+    renderFairness(fairness.groups);
+  } catch (error) {
+    showToast("Some monitoring data is unavailable");
+  }
+}
+
+function renderDebate(specialists) {
+  document.querySelector("#debateList").innerHTML = specialists.map((specialist) => `<div class="debate-row"><span class="agent-orb">${specialist.name[0]}</span><span><strong>${specialist.name}</strong><small>${specialist.reason}</small></span><b class="${specialist.position === "pass" ? "pass-text" : "flag-text"}">${specialist.position}</b></div>`).join("");
+}
+
+function renderDocuments(documents) {
+  document.querySelector("#documentList").innerHTML = documents.length ? documents.map((document) => `<span><i data-lucide="file-text"></i>${document.file_name}<b>${document.status}</b></span>`).join("") : "<span>No documents uploaded in this session.</span>";
+  lucide.createIcons();
+}
+
+function renderAudit(events) {
+  document.querySelector("#auditList").innerHTML = events.length ? events.map((event) => `<div class="audit-row"><span class="audit-dot"></span><span><strong>${event.event_type.replaceAll("_", " ")}</strong><small>${event.note || "No note"} · ${event.reviewer}</small></span><time>${new Date(event.created_at).toLocaleString()}</time></div>`).join("") : "<span>No events recorded for this application.</span>";
+}
+
+function renderRepayments(items) {
+  document.querySelector("#repaymentList").innerHTML = items.map((item) => `<div class="pulse-row"><span>${item.applicant_name}</span><b class="${item.health === "on_track" ? "on-track" : "watch"}">${item.health === "on_track" ? "On track" : "Watch"}</b><span>${item.amount_due ? Math.round((item.amount_paid / item.amount_due) * 100) : 0}%</span></div>`).join("");
+}
+
+function renderFairness(groups) {
+  document.querySelector("#fairnessList").innerHTML = groups.map((group) => `<div class="fairness-row"><span>${group.cohort.replaceAll("_", " ")}</span><strong>${group.applications}</strong><span>${Math.round(group.reviewed_rate * 100)}% reviewed</span></div>`).join("");
 }
 
 function showToast(message) {
@@ -170,8 +234,35 @@ document.querySelector("#moreActions").addEventListener("click", async () => {
     showToast(results.length ? `Found ${results.length} knowledge notes` : "No knowledge notes found");
   } catch (error) { showToast("Knowledge search unavailable"); }
 });
+document.querySelector("#simulateButton").addEventListener("click", async () => {
+  const payload = { monthly_income: Number(document.querySelector("#simIncome").value), monthly_debt: Number(document.querySelector("#simDebt").value), requested_payment: Number(document.querySelector("#simPayment").value) };
+  let result;
+  if (apiConnected) {
+    const response = await fetch(`/api/applications/${selectedId}/simulate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    if (!response.ok) { showToast("Simulation failed"); return; }
+    result = await response.json();
+  } else {
+    result = { debt_to_income_ratio: (payload.monthly_debt + payload.requested_payment) / payload.monthly_income };
+  }
+  document.querySelector("#simDti").textContent = `${(result.debt_to_income_ratio * 100).toFixed(1)}%`;
+  document.querySelector("#simStatus").textContent = result.debt_to_income_ratio <= .4 ? "Below the 40% indicator threshold" : "Above the 40% indicator threshold";
+  showToast("What-if simulation complete; stored data unchanged");
+});
+document.querySelector("#debateButton").addEventListener("click", async () => { if (!apiConnected) { showToast("Start the API to run specialist review"); return; } await loadFeatureData(); showToast("Specialist perspectives refreshed"); });
+document.querySelector("#documentInput").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!apiConnected) { document.querySelector("#documentList").innerHTML = `<span><i data-lucide="file-text"></i>${file.name}<b>demo queued</b></span>`; lucide.createIcons(); showToast("Document queued in demo mode"); return; }
+  const form = new FormData();
+  form.append("document", file);
+  const response = await fetch(`/api/applications/${selectedId}/documents`, { method: "POST", body: form });
+  if (!response.ok) { showToast("Document upload failed"); return; }
+  await loadFeatureData();
+  showToast("Document uploaded; extraction queued");
+});
 
 lucide.createIcons();
 renderRows();
 renderSelected();
 loadApplications();
+loadFeatureData();

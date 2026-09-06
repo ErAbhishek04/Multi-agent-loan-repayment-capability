@@ -12,8 +12,9 @@ load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://app:app@localhost:5432/agentdb",
+    "postgresql://app:app@localhost:5433/agentdb",
 )
+DB_CONNECT_TIMEOUT = int(os.getenv("DB_CONNECT_TIMEOUT", "3"))
 CHROMA_PATH = os.getenv("CHROMA_PATH", "./chroma_data")
 
 mcp = MCPServer("employee-data-server")
@@ -39,7 +40,7 @@ def search_employees(query: str, limit: int = 5) -> list[dict[str, Any]]:
         ORDER BY id
         LIMIT %s
     """
-    with psycopg.connect(DATABASE_URL) as conn:
+    with psycopg.connect(DATABASE_URL, connect_timeout=DB_CONNECT_TIMEOUT) as conn:
         rows = conn.execute(sql, (like, like, like, like, limit)).fetchall()
         columns = ["id", "name", "department", "role", "salary", "skills"]
         return [dict(zip(columns, row)) for row in rows]
@@ -56,7 +57,7 @@ def get_department_stats(department: str) -> dict[str, Any]:
         FROM employees
         WHERE department ILIKE %s
     """
-    with psycopg.connect(DATABASE_URL) as conn:
+    with psycopg.connect(DATABASE_URL, connect_timeout=DB_CONNECT_TIMEOUT) as conn:
         row = conn.execute(sql, (department,)).fetchone()
     return {
         "department": department,
@@ -80,7 +81,7 @@ def assess_loan_application(application_id: int) -> dict[str, Any]:
         FROM loan_applications
         WHERE id = %s
     """
-    with psycopg.connect(DATABASE_URL) as conn:
+    with psycopg.connect(DATABASE_URL, connect_timeout=DB_CONNECT_TIMEOUT) as conn:
         row = conn.execute(sql, (application_id,)).fetchone()
 
     if row is None:

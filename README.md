@@ -12,6 +12,7 @@ The project uses the current MCP Python SDK v2 line and the OpenAI Agents SDK wi
 - **SQL Specialist**: uses MCP tools backed by PostgreSQL.
 - **Knowledge Specialist**: uses MCP tools backed by Chroma.
 - **Loan Risk Specialist**: calculates explainable affordability indicators from loan applications.
+- **Review workspace**: includes what-if simulation, specialist perspectives, document intake, repayment monitoring, fairness testing, and an auditable review workflow.
 - **MCP server**: exposes five tools:
   - `search_employees`
   - `get_department_stats`
@@ -128,6 +129,24 @@ The API exposes `/api/health`, `/api/applications`, `/api/applications/{id}/asse
 ```
 
 The important architecture idea is that the **agents do not connect directly to PostgreSQL/Chroma**. They call MCP tools. The MCP server owns the actual integrations.
+
+## Review workspace features
+
+The connected dashboard at `http://127.0.0.1:8000/` includes:
+
+- **What-if simulator**: tests income, debt, and payment changes without mutating an application.
+- **Specialist perspectives**: shows affordability, credit, and stability signals as separate review inputs.
+- **Evidence desk**: records uploaded document metadata and queues extraction for an OCR adapter.
+- **Repayment watch**: summarizes paid-versus-due events and flags accounts needing follow-up.
+- **Fairness check**: reports synthetic operational cohorts for testing; it does not use protected characteristics for lending decisions.
+- **Audit trail**: records review changes, document uploads, and reviewer notes.
+- **Privacy-first operation**: supports local PostgreSQL, Chroma, and Ollama without an OpenAI key.
+
+The API routes are documented automatically at `http://127.0.0.1:8000/docs`. The main routes are `/api/applications`, `/api/applications/{id}/simulate`, `/api/applications/{id}/debate`, `/api/applications/{id}/documents`, `/api/applications/{id}/audit`, `/api/monitoring/repayments`, and `/api/analytics/fairness`.
+
+The project database uses host port `5433` to avoid conflicts with an existing Windows PostgreSQL service on port `5432`; the container still listens on `5432` internally.
+
+Document extraction and repayment-provider webhooks are intentionally adapter points in this MVP. They record and expose the workflow without pretending that an OCR or external banking integration has completed.
 
 ## Loan assessment scope
 

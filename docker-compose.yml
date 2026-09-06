@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./data/seed.sql:/docker-entrypoint-initdb.d/001_seed.sql:ro
