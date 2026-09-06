@@ -51,6 +51,7 @@ const toast = document.querySelector("#toast");
 const money = (value) => `$${value.toLocaleString("en-US")}`;
 const dti = (application) => (application.debt + application.payment) / application.income;
 const statusLabel = (application) => application.reviewed ? "Reviewed" : application.status === "ready" ? "Ready to review" : "Needs attention";
+const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
 
 function updateSummary(summary) {
   document.querySelector("#needsReviewMetric").textContent = String(summary.needs_review).padStart(2, "0");
@@ -96,7 +97,7 @@ function renderRows() {
 
   rows.innerHTML = visible.length ? visible.map((application) => `
     <tr class="${application.id === selectedId ? "selected" : ""}" data-id="${application.id}">
-      <td><div class="applicant-cell"><span class="applicant-avatar" style="background:${application.color}">${application.initials}</span><span class="applicant-name"><strong>${application.name}</strong><small>APP-${String(application.id).padStart(4, "0")}</small></span></div></td>
+      <td><div class="applicant-cell"><span class="applicant-avatar" style="background:${application.color}">${escapeHtml(application.initials)}</span><span class="applicant-name"><strong>${escapeHtml(application.name)}</strong><small>APP-${String(application.id).padStart(4, "0")}</small></span></div></td>
       <td class="mono">${money(application.income)}</td>
       <td class="mono">${(dti(application) * 100).toFixed(1)}%</td>
       <td class="mono">${application.credit}</td>
@@ -185,7 +186,7 @@ function renderDocuments(documents) {
 }
 
 function renderAudit(events) {
-  document.querySelector("#auditList").innerHTML = events.length ? events.map((event) => `<div class="audit-row"><span class="audit-dot"></span><span><strong>${event.event_type.replaceAll("_", " ")}</strong><small>${event.note || "No note"} · ${event.reviewer}</small></span><time>${new Date(event.created_at).toLocaleString()}</time></div>`).join("") : "<span>No events recorded for this application.</span>";
+  document.querySelector("#auditList").innerHTML = events.length ? events.map((event) => `<div class="audit-row"><span class="audit-dot"></span><span><strong>${escapeHtml(event.event_type.replaceAll("_", " "))}</strong><small>${escapeHtml(event.note || "No note")} · ${escapeHtml(event.reviewer)}</small></span><time>${new Date(event.created_at).toLocaleString()}</time></div>`).join("") : "<span>No events recorded for this application.</span>";
 }
 
 function renderRepayments(items) {
@@ -206,6 +207,18 @@ function showToast(message) {
 searchInput.addEventListener("input", renderRows);
 statusFilter.addEventListener("change", renderRows);
 document.querySelector("#clearFilters").addEventListener("click", () => { searchInput.value = ""; statusFilter.value = "all"; renderRows(); });
+document.querySelector("#exportButton").addEventListener("click", () => {
+  const query = searchInput.value.trim().toLowerCase();
+  const filter = statusFilter.value;
+  const visible = applications.filter((application) => (!query || application.name.toLowerCase().includes(query) || String(application.id).includes(query)) && (filter === "all" || application.status === filter));
+  const csv = ["Application ID,Applicant,Monthly income,Monthly debt,Requested payment,DTI,Credit score,Employment months,Status", ...visible.map((application) => [application.id, application.name, application.income, application.debt, application.payment, `${(dti(application) * 100).toFixed(1)}%`, application.credit, application.employment, statusLabel(application)].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))].join("\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  link.download = `clearline-applications-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  showToast(`Exported ${visible.length} application${visible.length === 1 ? "" : "s"}`);
+});
 document.querySelector("#refreshButton").addEventListener("click", async (event) => { event.currentTarget.querySelector("svg")?.classList.add("spin"); await loadApplications(true); window.setTimeout(() => event.currentTarget.querySelector("svg")?.classList.remove("spin"), 500); });
 document.querySelector("#markReviewed").addEventListener("click", async () => {
   const application = applications.find((item) => item.id === selectedId);
@@ -226,13 +239,35 @@ document.querySelector("#markReviewed").addEventListener("click", async () => {
   renderRows();
   renderSelected();
 });
-document.querySelector("#moreActions").addEventListener("click", async () => {
-  if (!apiConnected) { showToast("Start the API to search the knowledge base"); return; }
+document.querySelector("#moreActions").addEventListener("click", () => {
+  document.querySelector("#knowledgeModal").hidden = false;
+  document.querySelector("#knowledgeQuery").focus();
+});
+document.querySelector("#closeKnowledge").addEventListener("click", () => { document.querySelector("#knowledgeModal").hidden = true; });
+document.querySelector("#knowledgeForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const query = document.querySelector("#knowledgeQuery").value.trim();
+  const resultsContainer = document.querySelector("#knowledgeResults");
+  if (!apiConnected) { resultsContainer.innerHTML = "<span>Start the API to search the local knowledge base.</span>"; return; }
+  resultsContainer.innerHTML = "<span>Searching...</span>";
   try {
-    const response = await fetch("/api/knowledge/search?q=loan+review");
+    const response = await fetch(`/api/knowledge/search?q=${encodeURIComponent(query)}`);
+    if (!response.ok) throw new Error("Search failed");
     const results = await response.json();
-    showToast(results.length ? `Found ${results.length} knowledge notes` : "No knowledge notes found");
-  } catch (error) { showToast("Knowledge search unavailable"); }
+    resultsContainer.innerHTML = results.length ? results.map((result) => `<article class="knowledge-result"><strong>${escapeHtml(result.metadata?.source || "Knowledge note")}</strong><p>${escapeHtml(result.document)}</p></article>`).join("") : "<span>No matching knowledge notes found.</span>";
+  } catch (error) { resultsContainer.innerHTML = "<span>Knowledge search is unavailable.</span>"; }
+});
+document.querySelector("#auditForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const noteInput = document.querySelector("#auditNote");
+  const note = noteInput.value.trim();
+  if (!note) return;
+  if (!apiConnected) { showToast("Start the API to save reviewer notes"); return; }
+  const response = await fetch(`/api/applications/${selectedId}/audit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event_type: "reviewer_note", reviewer: "Alex Rivera", note }) });
+  if (!response.ok) { showToast("Could not save reviewer note"); return; }
+  noteInput.value = "";
+  await loadFeatureData();
+  showToast("Reviewer note added");
 });
 document.querySelector("#simulateButton").addEventListener("click", async () => {
   const payload = { monthly_income: Number(document.querySelector("#simIncome").value), monthly_debt: Number(document.querySelector("#simDebt").value), requested_payment: Number(document.querySelector("#simPayment").value) };

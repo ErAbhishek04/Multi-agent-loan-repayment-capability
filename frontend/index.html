@@ -47,7 +47,7 @@
 
       <section class="content-grid">
         <article class="panel applications-panel" id="applications">
-          <div class="panel-heading"><div><p class="eyebrow">Queue</p><h2>Applications to review</h2></div><button class="text-button" id="clearFilters" type="button">Clear filters <i data-lucide="x"></i></button></div>
+          <div class="panel-heading"><div><p class="eyebrow">Queue</p><h2>Applications to review</h2></div><div class="panel-heading-actions"><button class="text-button" id="exportButton" type="button"><i data-lucide="download"></i>Export CSV</button><button class="text-button" id="clearFilters" type="button">Clear filters <i data-lucide="x"></i></button></div></div>
           <div class="filter-row"><label class="search-field"><i data-lucide="search"></i><input id="searchInput" type="search" placeholder="Search applicant or ID" aria-label="Search applications"></label><select id="statusFilter" aria-label="Filter by status"><option value="all">All statuses</option><option value="ready">Ready to review</option><option value="attention">Needs attention</option><option value="reviewed">Reviewed</option></select><button class="filter-button" type="button"><i data-lucide="sliders-horizontal"></i>Filters</button></div>
           <div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Monthly income</th><th>DTI after loan</th><th>Credit</th><th>Status</th><th><span class="sr-only">Open</span></th></tr></thead><tbody id="applicationRows"></tbody></table></div>
           <div class="table-footer"><span id="resultCount">Showing 3 applications</span><div class="pagination"><button class="icon-button small" aria-label="Previous page"><i data-lucide="chevron-left"></i></button><span>1 / 1</span><button class="icon-button small" aria-label="Next page"><i data-lucide="chevron-right"></i></button></div></div>
@@ -98,12 +98,14 @@
 
       <section class="panel audit-panel" id="audit">
         <div class="panel-heading"><div><p class="eyebrow">Accountability</p><h2>Audit trail</h2></div><span class="application-id">Selected application activity</span></div>
+        <form class="audit-form" id="auditForm"><label for="auditNote">Add reviewer note</label><div><input id="auditNote" maxlength="1000" placeholder="Record a decision, follow-up, or evidence note"><button class="primary-button" type="submit"><i data-lucide="plus"></i>Add note</button></div></form>
         <div id="auditList" class="audit-list"><span>Select an application to load its activity.</span></div>
       </section>
 
       <footer class="footer-note"><span><i data-lucide="lock-keyhole"></i>Data stays in your local workspace</span><span>v0.1 demo</span></footer>
     </main>
   </div>
+  <div class="modal-backdrop" id="knowledgeModal" hidden><section class="knowledge-modal" role="dialog" aria-modal="true" aria-labelledby="knowledgeTitle"><div class="panel-heading"><div><p class="eyebrow">Knowledge base</p><h2 id="knowledgeTitle">Search guidance</h2></div><button class="icon-button" id="closeKnowledge" type="button" aria-label="Close knowledge search"><i data-lucide="x"></i></button></div><form class="knowledge-search" id="knowledgeForm"><input id="knowledgeQuery" minlength="2" maxlength="200" required placeholder="Search policies, product, or technical guidance"><button class="primary-button" type="submit"><i data-lucide="search"></i>Search</button></form><div class="knowledge-results" id="knowledgeResults"><span>Search the local company knowledge base.</span></div></section></div>
   <div class="toast" id="toast" role="status"></div>
   <script src="app.js"></script>
 </body>

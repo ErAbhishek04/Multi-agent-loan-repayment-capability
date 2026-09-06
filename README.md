@@ -140,6 +140,9 @@ The connected dashboard at `http://127.0.0.1:8000/` includes:
 - **Repayment watch**: summarizes paid-versus-due events and flags accounts needing follow-up.
 - **Fairness check**: reports synthetic operational cohorts for testing; it does not use protected characteristics for lending decisions.
 - **Audit trail**: records review changes, document uploads, and reviewer notes.
+- **Reviewer notes**: add persistent notes directly to the selected application's audit trail.
+- **Knowledge search**: search the local Chroma knowledge base from the review workspace and inspect matched guidance.
+- **Queue export**: export the current filtered application queue as CSV for offline review or handoff.
 - **Privacy-first operation**: supports local PostgreSQL, Chroma, and Ollama without an OpenAI key.
 
 The API routes are documented automatically at `http://127.0.0.1:8000/docs`. The main routes are `/api/applications`, `/api/applications/{id}/simulate`, `/api/applications/{id}/debate`, `/api/applications/{id}/documents`, `/api/applications/{id}/audit`, `/api/monitoring/repayments`, and `/api/analytics/fairness`.
