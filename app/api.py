@@ -8,6 +8,8 @@ import hmac
 import json
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -329,27 +331,45 @@ def specialist_debate(application_id: int) -> dict[str, Any]:
 
 @app.post("/api/applications/{application_id}/ai-review")
 async def ai_review(application_id: int) -> dict[str, Any]:
-    """Run the real Manager agent against one application for grounded review support."""
+    """Generate a grounded AI explanation from verified application facts."""
     try:
-        get_assessment(application_id)
-        from agents import Runner
-        from agents.mcp import MCPServerStdio
-        from app.loan_agents import SERVER_FILE, build_agents
+        assessment = get_assessment(application_id)
+        facts = json.dumps({
+            "applicant": assessment["name"],
+            "monthly_income": assessment["income"],
+            "monthly_debt": assessment["debt"],
+            "requested_payment": assessment["payment"],
+            "debt_to_income_ratio": assessment["dti"],
+            "credit_score": assessment["credit"],
+            "employment_months": assessment["employment"],
+            "indicators": assessment["indicators"],
+        })
+        request_body = json.dumps({
+            "model": os.getenv("LLM_MODEL", "llama3.2"),
+            "temperature": 0.1,
+            "max_tokens": 350,
+            "messages": [
+                {"role": "system", "content": "You are a loan review explanation assistant. Use only the supplied verified facts. Explain the debt-to-income ratio and each indicator in plain language. Recommend human verification steps. Never approve, reject, predict creditworthiness, or invent facts. State that this is decision support only."},
+                {"role": "user", "content": f"Explain this application for a qualified reviewer:\n{facts}"},
+            ],
+        }).encode()
+        model_base_url = os.getenv("LLM_BASE_URL", "http://127.0.0.1:11434/v1").replace("://localhost:", "://127.0.0.1:")
+        model_url = f"{model_base_url.rstrip('/')}/chat/completions"
 
-        async with MCPServerStdio(
-            name="employee-data-server",
-            client_session_timeout_seconds=60,
-            params={"command": sys.executable, "args": [str(SERVER_FILE)]},
-        ) as server:
-            manager = build_agents(server)
-            result = await asyncio.wait_for(
-                Runner.run(
-                    manager,
-                    f"Assess loan application {application_id}. Explain the returned inputs, debt-to-income ratio, each indicator, and what a qualified human reviewer should verify. This is decision support only; do not approve or reject the application.",
-                ),
-                timeout=90,
+        def request_model() -> str:
+            model_request = urllib.request.Request(
+                model_url,
+                data=request_body,
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {os.getenv('LLM_API_KEY', 'ollama')}"},
             )
-        return {"application_id": application_id, "answer": result.final_output, "decision_support_only": True, "model": os.getenv("LLM_MODEL", "llama3.2")}
+            with urllib.request.urlopen(model_request, timeout=30) as model_response:
+                response_data = json.loads(model_response.read().decode())
+            return response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+        answer = await asyncio.wait_for(asyncio.to_thread(request_model), timeout=35)
+        if not answer:
+            answer = "The AI model returned no explanation."
+        return {"application_id": application_id, "answer": answer, "decision_support_only": True, "model": os.getenv("LLM_MODEL", "llama3.2"), "source": "PostgreSQL assessment + local model"}
     except asyncio.TimeoutError as error:
         raise HTTPException(status_code=504, detail="The local AI model took too long to respond") from error
     except Exception as error:

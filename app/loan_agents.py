@@ -19,7 +19,7 @@ SERVER_FILE = BASE_DIR / "mcp_server.py"
 
 def local_model() -> OpenAIChatCompletionsModel:
     client = AsyncOpenAI(
-        base_url=os.getenv("LLM_BASE_URL", "http://localhost:11434/v1"),
+        base_url=os.getenv("LLM_BASE_URL", "http://127.0.0.1:11434/v1").replace("://localhost:", "://127.0.0.1:"),
         api_key=os.getenv("LLM_API_KEY", "ollama"),
     )
     return OpenAIChatCompletionsModel(
