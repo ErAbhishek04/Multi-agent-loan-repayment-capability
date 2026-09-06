@@ -146,6 +146,7 @@ The connected dashboard at `http://127.0.0.1:8000/` includes:
 
 - **What-if simulator**: tests income, debt, and payment changes without mutating an application.
 - **Specialist perspectives**: shows affordability, credit, and stability signals as separate review inputs.
+- **AI Manager review**: invokes the real Manager agent, which delegates to the loan-risk specialist through MCP and returns a grounded explanation.
 - **Evidence desk**: records uploaded document metadata and queues extraction for an OCR adapter.
 - **Repayment watch**: summarizes paid-versus-due events and flags accounts needing follow-up.
 - **Fairness check**: reports synthetic operational cohorts for testing; it does not use protected characteristics for lending decisions.
@@ -156,6 +157,8 @@ The connected dashboard at `http://127.0.0.1:8000/` includes:
 - **Privacy-first operation**: supports local PostgreSQL, Chroma, and Ollama without an OpenAI key.
 
 The API routes are documented automatically at `http://127.0.0.1:8000/docs`. The main routes are `/api/applications`, `/api/applications/{id}/simulate`, `/api/applications/{id}/debate`, `/api/applications/{id}/documents`, `/api/applications/{id}/audit`, `/api/monitoring/repayments`, and `/api/analytics/fairness`.
+
+The AI Manager review requires PostgreSQL, Chroma, and a running OpenAI-compatible local model such as Ollama. The deterministic specialist panel remains available as a fast explainable check when the model is offline.
 
 The project database uses host port `5433` to avoid conflicts with an existing Windows PostgreSQL service on port `5432`; the container still listens on `5432` internally.
 

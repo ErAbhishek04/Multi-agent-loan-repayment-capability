@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import os
+import asyncio
 import base64
 import hashlib
 import hmac
 import json
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -323,6 +325,35 @@ def specialist_debate(application_id: int) -> dict[str, Any]:
             {"name": "Stability specialist", "position": "pass" if employment_pass else "attention", "reason": f"Employment history is {assessment['employment']} months."},
         ],
     }
+
+
+@app.post("/api/applications/{application_id}/ai-review")
+async def ai_review(application_id: int) -> dict[str, Any]:
+    """Run the real Manager agent against one application for grounded review support."""
+    try:
+        get_assessment(application_id)
+        from agents import Runner
+        from agents.mcp import MCPServerStdio
+        from app.loan_agents import SERVER_FILE, build_agents
+
+        async with MCPServerStdio(
+            name="employee-data-server",
+            client_session_timeout_seconds=60,
+            params={"command": sys.executable, "args": [str(SERVER_FILE)]},
+        ) as server:
+            manager = build_agents(server)
+            result = await asyncio.wait_for(
+                Runner.run(
+                    manager,
+                    f"Assess loan application {application_id}. Explain the returned inputs, debt-to-income ratio, each indicator, and what a qualified human reviewer should verify. This is decision support only; do not approve or reject the application.",
+                ),
+                timeout=90,
+            )
+        return {"application_id": application_id, "answer": result.final_output, "decision_support_only": True, "model": os.getenv("LLM_MODEL", "llama3.2")}
+    except asyncio.TimeoutError as error:
+        raise HTTPException(status_code=504, detail="The local AI model took too long to respond") from error
+    except Exception as error:
+        raise HTTPException(status_code=503, detail=f"AI review unavailable: {error}") from error
 
 
 @app.post("/api/applications/{application_id}/documents")

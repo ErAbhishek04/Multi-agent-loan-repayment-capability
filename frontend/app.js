@@ -310,6 +310,28 @@ document.querySelector("#simulateButton").addEventListener("click", async () => 
   showToast("What-if simulation complete; stored data unchanged");
 });
 document.querySelector("#debateButton").addEventListener("click", async () => { if (!apiConnected) { showToast("Start the API to run specialist review"); return; } await loadFeatureData(); showToast("Specialist perspectives refreshed"); });
+document.querySelector("#aiReviewButton").addEventListener("click", async (event) => {
+  if (!apiConnected) { showToast("Start PostgreSQL and the local AI model first"); return; }
+  const button = event.currentTarget;
+  const answer = document.querySelector("#aiAnswer");
+  button.disabled = true;
+  button.querySelector("svg")?.classList.add("spin");
+  answer.hidden = false;
+  answer.textContent = "The Manager agent is consulting the loan-risk specialist...";
+  try {
+    const response = await fetch(`/api/applications/${selectedId}/ai-review`, { method: "POST" });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || "AI review unavailable");
+    answer.textContent = result.answer;
+    showToast(`AI review completed with ${result.model}`);
+  } catch (error) {
+    answer.textContent = error.message;
+    showToast("AI review unavailable");
+  } finally {
+    button.disabled = false;
+    button.querySelector("svg")?.classList.remove("spin");
+  }
+});
 document.querySelector("#documentInput").addEventListener("change", async (event) => {
   const file = event.target.files[0];
   if (!file) return;
